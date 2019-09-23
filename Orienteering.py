@@ -54,7 +54,8 @@ def neighbors(map,current):
                   (-1, 1),(0, 1),(1, 1),]
        result=[]
        for i,j in neighbors:
-           result.append(map[y+j][x+i])
+           if x+i >0 and x+i < len(map[0]) and y+j>0 and y+j < len(map):
+               result.append(map[y+j][x+i])
        return result
 
 def rgb2hex(r, g, b):
@@ -96,7 +97,7 @@ def printMap(map):
     myfile.close()
 
 
-def hScore(start, goal):
+def heuristic(start, goal):
     (x,y,z)=start.x,start.y,start.z
     (gx,gy,gz)=goal.x,goal.y,goal.z
     xscore=abs(x-gx)
@@ -105,36 +106,45 @@ def hScore(start, goal):
     #print(xscore,yscore,zscore)
     score=xscore+yscore+zscore
     return score
-def gScore(start,current):
-    return
 def astar(map, start, goal):
 
     start = map[start[1]][start[0]]
     goal = map[goal[1]][goal[0]]
-    start.h=hScore(start,goal)
-
-    parents={}
-    cost={}
+    #start.h=heuristic(start,goal)
+    gscore={(start.x,start.y):0}
+    fscore={(start.x,start.y):heuristic(start,goal)}
+    closed=[]
+    parents=[]
     heap=[start]
     while heap:
+        print(heap)
         current = heappop(heap)
+
         if current == goal:
-            # path = []
-            # while current:
-            #     path.append(current)
-            #     current = current
-            # return path
-            break
+            path = []
+            path.append(current)
+            while current in parents:
+                path.append(current)
 
-        for next in neighbors(map,current):
-            print(next)
+                current = parents[parents.index(current)]
+            return path
+        closed.append(current)
 
-    return parents,cost
+        for neighbor in neighbors(map,current):
+            score=gscore[(current.x,current.y)]+heuristic(current,neighbor)
+            if neighbor in closed and score>= gscore.get((neighbor.x,neighbor.y),0):
+                continue
+            if score < gscore.get((neighbor.x,neighbor.y),0) or neighbor not in [i[1]for i in heap]:
+                parents[neighbor]=(current.x,current.y)
+                gscore[(neighbor.x,neighbor.y)]=score
+                fscore[(neighbor.x,neighbor.y)]=score+heuristic(neighbor,goal)
+                heappush(heap,(fscore[(neighbor.x,neighbor.y)], neighbor))
+
 
 
 def main(terrain_image, elevation_file, path_file, season, output):
+    print("test")
     map =makeMap(terrain_image, elevation_file)
-
     #printMap(map)
     start = (168, 236)
     goal = (178, 222)
@@ -142,7 +152,6 @@ def main(terrain_image, elevation_file, path_file, season, output):
     pix = terrain.load()
     pix[168, 236] = (255, 0, 0, 255)
     pix[178, 222] = (255, 0, 0, 255)
-
     print(astar(map, start, goal))
     terrain.save("save.png")
 
