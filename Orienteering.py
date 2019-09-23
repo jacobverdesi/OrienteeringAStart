@@ -1,5 +1,5 @@
 from typing import Any
-
+import typing
 from PIL import Image
 import math
 from enum import Enum
@@ -19,42 +19,43 @@ class Terrain(Enum):
     TRAIL = 9
     OUTOFBOUNDS = 10
 
+
 def makeMap(terrain_image, elevation_file):
     terrain = Image.open(terrain_image)
     pix = terrain.load()
     with open(elevation_file) as textFile:
         elev = [line.split() for line in textFile]
-    map = [[point for i in range(0, len(elev[0]) - 5)] for j in range(0, len(elev))]
-    for y in range(0, len(map)):
-        for x in range(0, len(map[y])):
+    grid = [[point for i in range(0, len(elev[0]) - 5)] for j in range(0, len(elev))]
+    for y in range(0, len(grid)):
+        for x in range(0, len(grid[y])):
             whole = elev[y][x].split('e+')
             elev[y][x] = round(float(whole[0]) * int(math.pow(10, int(whole[1]))), 6)
             z = elev[y][x]
             color = pix[x, y]
             hex = rgb2hex(color[0], color[1], color[2])
-            map[y][x] = point(x, y, float(z), getTerrain(hex))
-    return map
+            grid[y][x] = point(x, y, float(z),0,0,0, getTerrain(hex))
+    return grid
+
 
 @dataclass
 class point:
     x: int
     y: int
     z: float
+    f: int
+    h: int
+    g: int
     terrain: Terrain
 
-@dataclass
-class maps:
-    width: int
-    height: int
-    map:Any
-
-    def neighbors(self, id):
-        (x, y) = id
-        results = [(x - 1, y - 1), (x, y - 1), (x + 1, y - 1),
-                   (x - 1, y), (x + 1, y),
-                   (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)]
-        return results
-
+def neighbors(map,current):
+       (x, y) = current.x,current.y
+       neighbors=[(-1,-1),(0,-1),(1,-1),
+                  (-1, 0),       (1, 0),
+                  (-1, 1),(0, 1),(1, 1),]
+       result=[]
+       for i,j in neighbors:
+           result.append(map[y+j][x+i])
+       return result
 
 def rgb2hex(r, g, b):
     return "#{:02x}{:02x}{:02x}".format(r, g, b)
@@ -95,57 +96,46 @@ def printMap(map):
     myfile.close()
 
 
-def heuristic(a, b):
-    return math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
-
-
+def hScore(start, goal):
+    (x,y,z)=start.x,start.y,start.z
+    (gx,gy,gz)=goal.x,goal.y,goal.z
+    xscore=abs(x-gx)
+    yscore=abs(y-gy)
+    zscore=abs(z-gz)
+    #print(xscore,yscore,zscore)
+    score=xscore+yscore+zscore
+    return score
+def gScore(start,current):
+    return
 def astar(map, start, goal):
-    neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
 
-    close_set = set()
-    came_from = {}
-    gscore = {start: 0}
-    fscore = {start: heuristic(start, goal)}
     start = map[start[1]][start[0]]
-    heap = [point(start)]
+    goal = map[goal[1]][goal[0]]
+    start.h=hScore(start,goal)
+
+    parents={}
+    cost={}
+    heap=[start]
     while heap:
         current = heappop(heap)
         if current == goal:
-            data = []
-            while current in came_from:
-                data.append(current)
-                current = came_from[current]
-            return data
+            # path = []
+            # while current:
+            #     path.append(current)
+            #     current = current
+            # return path
+            break
 
-        close_set.add(current)
-        for i, j in neighbors:
-            neighbor = current[0] + i, current[1] + j
-            tentative_g_score = gscore[current] + heuristic(current, neighbor)
-            if 0 <= neighbor[0] < map.shape[0]:
-                if 0 <= neighbor[1] < map.shape[1]:
-                    if map[neighbor[0]][neighbor[1]] == 1:
-                        continue
-                else:
-                    # map bound y walls
-                    continue
-            else:
-                # map bound x walls
-                continue
+        for next in neighbors(map,current):
+            print(next)
 
-            if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
-                continue
-
-            if tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1] for i in oheap]:
-                came_from[neighbor] = current
-                gscore[neighbor] = tentative_g_score
-                fscore[neighbor] = tentative_g_score + heuristic(neighbor, goal)
-                heappush(heap, (fscore[neighbor], neighbor))
+    return parents,cost
 
 
 def main(terrain_image, elevation_file, path_file, season, output):
-    map1=maps(500,395, makeMap(terrain_image, elevation_file))
+    map =makeMap(terrain_image, elevation_file)
 
-    printMap(map1)
+    #printMap(map)
     start = (168, 236)
     goal = (178, 222)
     terrain = Image.open(terrain_image)
@@ -153,7 +143,7 @@ def main(terrain_image, elevation_file, path_file, season, output):
     pix[168, 236] = (255, 0, 0, 255)
     pix[178, 222] = (255, 0, 0, 255)
 
-    print(astar(map1, start, goal))
+    print(astar(map, start, goal))
     terrain.save("save.png")
 
 
