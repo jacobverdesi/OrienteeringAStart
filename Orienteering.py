@@ -5,7 +5,8 @@ import math
 from enum import Enum
 from dataclasses import dataclass
 from heapq import heappush, heappop
-
+from cv2 import VideoWriter, VideoWriter_fourcc, imread, resize
+import os
 
 class Terrain(Enum):
     OPENLAND = 1
@@ -33,9 +34,44 @@ def makeMap(terrain_image, elevation_file):
             z = elev[y][x]
             color = pix[x, y]
             hex = rgb2hex(color[0], color[1], color[2])
-            grid[y][x] = point(x, y, float(z),0,0,0, getTerrain(hex))
+            grid[y][x] = point(x, y, float(z),0,0,0,None, getTerrain(hex))
     return grid
 
+
+def make_video(images, outimg=None, fps=5, size=None,
+               is_color=True, format="XVID"):
+    """
+    Create a video from a list of images.
+
+    @param      outvid      output video
+    @param      images      list of images to use in the video
+    @param      fps         frame per second
+    @param      size        size of each frame
+    @param      is_color    color
+    @param      format      see http://www.fourcc.org/codecs.php
+    @return                 see http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_gui/py_video_display/py_video_display.html
+
+    The function relies on http://opencv-python-tutroals.readthedocs.org/en/latest/.
+    By default, the video will have the size of the first image.
+    It will resize every image to this size before adding them to the video.
+    """
+    fourcc = VideoWriter_fourcc(*format)
+    vid = None
+    for image in images:
+        image.save("imagetest.png")
+
+        # if not os.path.exists(image):
+        #     raise FileNotFoundError(image)
+        img = imread("imagetest.png")
+        if vid is None:
+            if size is None:
+                size = img.shape[1], img.shape[0]
+            vid = VideoWriter(outimg, fourcc, float(fps), size, is_color)
+        if size[0] != img.shape[1] and size[1] != img.shape[0]:
+            img = resize(img, size)
+        vid.write(img)
+    vid.release()
+    return vid
 
 @dataclass
 class point:
@@ -45,10 +81,15 @@ class point:
     f: int
     h: int
     g: int
+    prev: Any
     terrain: Terrain
 
+    def __lt__(self, other):
+        return self.f < other.f
+
 def neighbors(map,current):
-       (x, y) = current.x,current.y
+       x = current.x
+       y = current.y
        neighbors=[(-1,-1),(0,-1),(1,-1),
                   (-1, 0),       (1, 0),
                   (-1, 1),(0, 1),(1, 1),]
@@ -104,56 +145,88 @@ def heuristic(start, goal):
     yscore=abs(y-gy)
     zscore=abs(z-gz)
     #print(xscore,yscore,zscore)
-    score=xscore+yscore+zscore
+    score=xscore+yscore+zscore*3
     return score
 def astar(map, start, goal):
-
     start = map[start[1]][start[0]]
     goal = map[goal[1]][goal[0]]
-    #start.h=heuristic(start,goal)
-    gscore={(start.x,start.y):0}
-    fscore={(start.x,start.y):heuristic(start,goal)}
+    start.f=heuristic(start,goal)
+    print("Distance: ",start.f)
     closed=[]
-    parents=[]
-    heap=[start]
+    heap=[]
+    heappush(heap,start)
+    index=0
+    images=[]
+    elevation = Image.new("RGBA", (len(map[0]), len(map)))
+    elev = elevation.load()
+
     while heap:
-        print(heap)
         current = heappop(heap)
-
-        if current == goal:
+        index+=1
+        z=int(current.z)
+        z = int(255*index/4000)
+        elev[current.x, current.y] = (z,z,z, 255)
+        elevation.save('elev2.png')
+        images.append(elevation)
+        #print(current)
+        print("Estimated distance from: ",heuristic(current,goal),"/",start.f)
+        if current.x == goal.x and current.y == goal.y:
             path = []
-            path.append(current)
-            while current in parents:
-                path.append(current)
+            while current:
+                path.append((current.x,current.y))
+                current = current.prev
+            return path[::-1] ,images
 
-                current = parents[parents.index(current)]
-            return path
         closed.append(current)
 
         for neighbor in neighbors(map,current):
-            score=gscore[(current.x,current.y)]+heuristic(current,neighbor)
-            if neighbor in closed and score>= gscore.get((neighbor.x,neighbor.y),0):
+            score=current.g+heuristic(current,neighbor)
+            if neighbor in closed and score>= neighbor.g:
                 continue
-            if score < gscore.get((neighbor.x,neighbor.y),0) or neighbor not in [i[1]for i in heap]:
-                parents[neighbor]=(current.x,current.y)
-                gscore[(neighbor.x,neighbor.y)]=score
-                fscore[(neighbor.x,neighbor.y)]=score+heuristic(neighbor,goal)
-                heappush(heap,(fscore[(neighbor.x,neighbor.y)], neighbor))
-
+            if score < neighbor.g or neighbor not in heap:
+                neighbor.prev=current
+                neighbor.g=score
+                neighbor.f=score+heuristic(neighbor,goal)
+                heappush(heap,neighbor)
 
 
 def main(terrain_image, elevation_file, path_file, season, output):
     print("test")
     map =makeMap(terrain_image, elevation_file)
     #printMap(map)
-    start = (168, 236)
-    goal = (178, 222)
+    start = (100, 100)
+    goal = (100,130)
     terrain = Image.open(terrain_image)
     pix = terrain.load()
-    pix[168, 236] = (255, 0, 0, 255)
-    pix[178, 222] = (255, 0, 0, 255)
-    print(astar(map, start, goal))
-    terrain.save("save.png")
+
+
+    #path=astar(map,start,goal)
+    #for x,y in path:
+    #    pix[x,y]=(255,0,0,255)
+    pix[start[0], start[1]] = (255, 255, 0, 255)
+    pix[goal[0], goal[1]] = (255, 255, 0, 255)
+    #terrain.save("save.png")
+    elevation = Image.new("RGBA", (len(map[0]), len(map)))
+    elev = elevation.load()
+    max,min=187,250
+
+    # for y in range(0, len(map)):
+    #     for x in range(0, len(map[0])):
+    #         z=int(map[y][x].z)
+    #         z=(z-187)*4
+    #         if z<60:
+    #             elev[x,y]=(z,z,z,255)
+    #         elif z>=60 and z < 130:
+    #             elev[x, y] = (z, z, z, 255)
+    #         elif z>=130:
+    #             elev[x, y] = (z, z, z, 255)
+    path,images=astar(map,start,goal)
+    for x,y in path:
+       elev[x,y]=(255,0,0,255)
+    elev[start[0], start[1]] = (255, 255, 0, 255)
+    elev[goal[0], goal[1]] = (255, 255, 0, 255)
+    images[len(images)-1].save("elev.png")
+    make_video(images,'output.avi')
 
 
 if __name__ == '__main__':
