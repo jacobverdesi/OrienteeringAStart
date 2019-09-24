@@ -64,6 +64,8 @@ def runCourse(map, path_file):
         start = points[i]
         next = points[i + 1]
         stops.append(next)
+        print("Finding point: ",i+1,"/",len(points)-1,end=' ')
+
         path, visits = astar(map, start, next)
         for y in range(0, len(map)):
             for x in range(0, len(map[y])):
@@ -131,36 +133,36 @@ def printMap(map):
 def heuristic(start, goal):
     (x, y, z) = start.x, start.y, start.z
     (gx, gy, gz) = goal.x, goal.y, goal.z
-    xscore = abs(x - gx)
-    yscore = abs(y - gy)
-    zscore = abs(z - gz)
-    # print(xscore,yscore,zscore)
-    score = (10.29 * xscore) + (7.55 * yscore) + zscore
-    return score
+    dx = abs(x - gx)*10.29
+    dy = abs(y - gy)*7.55
+    dz = abs(z - gz)
+    D=1
+    D2=1
+    score = D * (dx + dy) + (D2 - 2 * D) * min(dx, dy)
+    return score+dz
 
 
 def astar(map, start, goal):
     start = map[start[1]][start[0]]
     goal = map[goal[1]][goal[0]]
     start.f = heuristic(start, goal)
-    print("Distance: ", start.f)
+    print("Predicted distance: ", start.f)
     closed = []
     visited = []
     heap = []
     heappush(heap, start)
-
     while heap:
         current = heappop(heap)
         visited.append(current)
 
-        print("Estimated distance from: ", heuristic(current, goal), "/", start.f)
+        #print("Estimated distance from: ", heuristic(current, goal), "/", start.f)
         if current.x == goal.x and current.y == goal.y:
+            print("Found point: ",current.x,",",current.y," Distance: ",current.g)
             path = []
             while current:
                 path.append((current.x, current.y))
                 current = current.prev
             return path[::-1], visited
-
         closed.append(current)
 
         for neighbor in neighbors(map, current):
@@ -181,6 +183,7 @@ def draw(terrain_image, map, visited, path, stops):
     for y in range(0, len(map)):
         for x in range(0, len(map[0])):
             z = int(map[y][x].z)
+
             z = (z - 187) * 4
             if z < 50:
                 pix[x, y] = (0, 0, z, 255)
@@ -194,24 +197,37 @@ def draw(terrain_image, map, visited, path, stops):
                 pix[x, y] = (z, 0, 0, 255)
     terrain.save("output/elevationMap.png")
     print("Elevation Map Done")
-    for index in range(0, len(visited)):
-        visit = visited[index]
-        z = int(255 * index / len(visited))
-        pix[visit.x, visit.y] = (z, z, z, 255)
-        terrain.save("images/image" + str(index) + ".png")
-    print("Visited Map Done")
+    # for index in range(0, len(visited)):
+    #     visit = visited[index]
+    #     z = int(255 * index / len(visited))
+    #     pix[visit.x, visit.y] = (z, z, z, 255)
+    #     terrain.save("images/image" + str(index) + ".png")
+    # print("Visited Map Done")
 
     for x, y in path:
-        pix[x, y] = (255, 0, 0, 255)
+        for i in range (-1,2):
+            for j in range(-1,2):
+
+                if pix[x+i,y+j]!=(150, 50, 150, 255):
+                    if x!=0 or y!=0 :
+                        pix[x+i, y+j] = (200, 100, 230, 255)
+        pix[x, y] = (150, 50, 150, 255)
+
+    for i in range(0, len(stops)):
+        pix[stops[i][0], stops[i][1]] = (100, 50, 230, 255)
+        for y in range(-2,3,1):
+            for x in range(-2,3,1):
+                if x != 0 or y != 0:
+                    pix[stops[i][0]+x, stops[i][1]+y] = (50, 20, 180, 255)
+
     start, goal = stops[0], stops[len(stops) - 1]
     pix[start[0], start[1]] = (255, 60, 255, 255)
     pix[goal[0], goal[1]] = (255, 60, 255, 255)
-    for i in range(1, len(stops) - 1):
-        pix[stops[i][0], stops[i][1]] = (255, 255, 0, 255)
+
     terrain.save("output/pathMap.png")
     print("Path Map Done")
 
-    make_video(len(visited), 'output/output.avi', 100)
+    #make_video(len(visited), 'output/output.avi', 100)
 
 
 def main(terrain_image, elevation_file, path_file, season, output):
