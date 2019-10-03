@@ -178,11 +178,11 @@ def astar(map, start, goal):
 
 def main(terrain_image, elevation_file, path_file, season, output):
     map = makeMap(terrain_image, elevation_file)
-    # printMap(map)
-
     path, visited, stops = runCourse(map, path_file)
-    constructRender("output/pathMap.png",map=map, path=path, stops=stops ,outline=0)
+    constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops ,outline=0)
     constructRender("output/visitedMap.png",map=map,visited=visited,stops=stops ,outline=0)
+    constructRender("output/pathMap.png",terrain=terrain_image, path=path, stops=stops ,outline=0)
+
 
 
 if __name__ == '__main__':
