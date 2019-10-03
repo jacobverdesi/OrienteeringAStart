@@ -1,13 +1,11 @@
 from typing import Any
-import typing
 from PIL import Image
 import math
 from enum import Enum
 from dataclasses import dataclass
 from heapq import heappush, heappop
-import os
 
-from Video import make_video
+from RenderMap import *
 
 
 class Terrain(Enum):
@@ -78,7 +76,6 @@ def runCourse(map, path_file):
         for v in visits:
             if v not in visited:
                 visited.append(v)
-
     return paths, visited, stops
 
 
@@ -133,8 +130,8 @@ def printMap(map):
 def heuristic(start, goal):
     (x, y, z) = start.x, start.y, start.z
     (gx, gy, gz) = goal.x, goal.y, goal.z
-    dx = abs(x - gx)*10.29
-    dy = abs(y - gy)*7.55
+    dx = abs(x - gx)
+    dy = abs(y - gy)
     dz = abs(z - gz)
     D=1
     D2=1
@@ -176,58 +173,7 @@ def astar(map, start, goal):
                 heappush(heap, neighbor)
 
 
-def draw(terrain_image, map, visited, path, stops):
-    print("Drawing Maps")
-    terrain = Image.open(terrain_image)
-    pix = terrain.load()
-    for y in range(0, len(map)):
-        for x in range(0, len(map[0])):
-            z = int(map[y][x].z)
 
-            z = (z - 187) * 4
-            if z < 50:
-                pix[x, y] = (0, 0, z, 255)
-            elif z >= 50 and z < 100:
-                pix[x, y] = (0, z, z, 255)
-            elif z >= 100 and z < 150:
-                pix[x, y] = (0, z, 0, 255)
-            elif z >= 150 and z < 200:
-                pix[x, y] = (z, z, 0, 255)
-            elif z >= 200:
-                pix[x, y] = (z, 0, 0, 255)
-    terrain.save("output/elevationMap.png")
-    print("Elevation Map Done")
-    # for index in range(0, len(visited)):
-    #     visit = visited[index]
-    #     z = int(255 * index / len(visited))
-    #     pix[visit.x, visit.y] = (z, z, z, 255)
-    #     terrain.save("images/image" + str(index) + ".png")
-    # print("Visited Map Done")
-
-    for x, y in path:
-        for i in range (-1,2):
-            for j in range(-1,2):
-
-                if pix[x+i,y+j]!=(150, 50, 150, 255):
-                    if x!=0 or y!=0 :
-                        pix[x+i, y+j] = (200, 100, 230, 255)
-        pix[x, y] = (150, 50, 150, 255)
-
-    for i in range(0, len(stops)):
-        pix[stops[i][0], stops[i][1]] = (100, 50, 230, 255)
-        for y in range(-2,3,1):
-            for x in range(-2,3,1):
-                if x != 0 or y != 0:
-                    pix[stops[i][0]+x, stops[i][1]+y] = (50, 20, 180, 255)
-
-    start, goal = stops[0], stops[len(stops) - 1]
-    pix[start[0], start[1]] = (255, 60, 255, 255)
-    pix[goal[0], goal[1]] = (255, 60, 255, 255)
-
-    terrain.save("output/pathMap.png")
-    print("Path Map Done")
-
-    #make_video(len(visited), 'output/output.avi', 100)
 
 
 def main(terrain_image, elevation_file, path_file, season, output):
@@ -235,9 +181,10 @@ def main(terrain_image, elevation_file, path_file, season, output):
     # printMap(map)
 
     path, visited, stops = runCourse(map, path_file)
-    draw(terrain_image, map, visited, path, stops)
+    constructRender("output/pathMap.png",map=map, path=path, stops=stops ,outline=0)
+    constructRender("output/visitedMap.png",map=map,visited=visited,stops=stops ,outline=0)
 
 
 if __name__ == '__main__':
-    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt", "winter",
+    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/easy.txt", "winter",
          "redWinter.png")
