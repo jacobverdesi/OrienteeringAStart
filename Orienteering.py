@@ -10,15 +10,15 @@ from RenderMap import *
 
 class Terrain(Enum):
     OPENLAND = 1
-    ROUGHMEADOW = 2
-    EASYFOREST = 3
+    ROUGHMEADOW = 3
+    EASYFOREST =  2
     SLOWRUNFOREST = 4
     WALKFOREST = 5
-    IMPASSABLEVEG = 6
-    LAKE = 7
-    ROAD = 8
-    TRAIL = 9
-    OUTOFBOUNDS = 10
+    IMPASSABLEVEG = 100
+    LAKE = 6
+    ROAD = .6
+    TRAIL = .7
+    OUTOFBOUNDS = 100
 
 
 @dataclass
@@ -130,14 +130,21 @@ def printMap(map):
 def heuristic(start, goal):
     (x, y, z) = start.x, start.y, start.z
     (gx, gy, gz) = goal.x, goal.y, goal.z
-    dx = abs(x - gx)
-    dy = abs(y - gy)
+    dx = abs(x - gx)*10.29
+    dy = abs(y - gy) * 7.55
     dz = abs(z - gz)
     D=1
     D2=1
-    score = D * (dx + dy) + (D2 - 2 * D) * min(dx, dy)
-    return score+dz
+    #score = D * (dx + dy) + (D2 - 2 * D) * min(dx, dy)
+    score=math.sqrt(dx*dx+dy*dy)
+    return math.sqrt(score*score+dz*dz)
 
+def terrainHeuristic(start,goal):
+    distance=heuristic(start,goal)
+    #print(start.terrain)
+    terrainMulti=goal.terrain.value
+
+    return distance*terrainMulti
 
 def astar(map, start, goal):
     start = map[start[1]][start[0]]
@@ -163,7 +170,7 @@ def astar(map, start, goal):
         closed.append(current)
 
         for neighbor in neighbors(map, current):
-            score = current.g + heuristic(current, neighbor)
+            score = current.g + terrainHeuristic(current, neighbor)
             if neighbor in closed and score >= neighbor.g:
                 continue
             if score < neighbor.g or neighbor not in heap:
@@ -186,5 +193,5 @@ def main(terrain_image, elevation_file, path_file, season, output):
 
 
 if __name__ == '__main__':
-    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt", "winter",
-         "redWinter.png")
+    #main("testcases/distanceCalc/terrain.png", "testcases/distanceCalc/mpp.txt", "testcases/distanceCalc/100Xpath.txt", "winter","redWinter.png")
+    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","winter","redWinter.png")
