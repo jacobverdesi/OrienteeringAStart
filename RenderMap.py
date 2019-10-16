@@ -80,7 +80,7 @@ def drawStops (terrain_image,stops,outline):
 
 def constructRender(output,terrain=None, map=None,visited=None,path=None,stops=None,outline=0):
         if terrain != None:
-            terrain_image=Image.open(terrain)
+            terrain_image=terrain
         elif map != None:
             terrain_image=drawElevationMap(map)
         if visited!= None:
