@@ -1,3 +1,4 @@
+import queue
 from typing import Any
 from PIL import Image
 import math
@@ -18,6 +19,7 @@ class Terrain(Enum):
     WALKFOREST = 1
     LAKE = 2
     ICE = 3
+    MUD = 4
     IMPASSABLEVEG = 100
     OUTOFBOUNDS = 200
 
@@ -36,7 +38,7 @@ class point:
     def __repr__(self):
         return str(self.x)+","+str(self.y)+" f: "+str(round(self.f,1))+" = "+str(round(self.g,1))+" + "+str(round(self.h,1))
     def __lt__(self, other):
-        return self.f < other.f
+        return self.h < other.h
 
 def makeMap(terrain_image, elevation_file,season):
     terrain = Image.open(terrain_image)
@@ -52,13 +54,76 @@ def makeMap(terrain_image, elevation_file,season):
             color = pix[x, y]
             hex = "#{:02x}{:02x}{:02x}".format(color[0], color[1], color[2])
             grid[y][x] = point(x, y, float(z), 0, 0,0, None, getTerrain(hex))
-    for y in range(0, len(grid)):
-        for x in range(0, len(grid[y])):
-            if grid[y][x].terrain == Terrain.LAKE:
-                for neighbor in neighbors(grid,grid[y][x]):
-                    neighbor.terrain=Terrain.ICE
-                    pix[x,y]=(123,255,255,255)
+    if season=="winter":
+        frontier=[]
+        for y in range(0, len(grid)):
+            for x in range(0, len(grid[y])):
+                if grid[y][x].terrain == Terrain.LAKE:
+                    for neighbor in neighbors(grid,grid[y][x]):
+                        if neighbor.terrain!= Terrain.LAKE and neighbor.terrain != Terrain.OUTOFBOUNDS:
+                            frontier.append(neighbor)
+
+        Icebfs(pix,grid,frontier)
+    if season=="spring":
+        frontier=[]
+        for y in range(0, len(grid)):
+            for x in range(0, len(grid[y])):
+                if grid[y][x].terrain == Terrain.LAKE:
+                    for neighbor in neighbors(grid,grid[y][x]):
+                        if neighbor.terrain!= Terrain.LAKE and neighbor.terrain != Terrain.OUTOFBOUNDS:
+                            neighbor.terrain=Terrain.MUD
+                            pix[neighbor.x, neighbor.y] = (141, 76, 0, 255)
+                            frontier.append((neighbor,grid[y][x].z))
+
+        Mudbfs(pix,grid,frontier)
     return terrain,grid
+
+def Icebfs(pix,grid,frontier):
+    q = queue.Queue()
+    for curr in frontier:
+        q.put(curr)
+    q.put(None)
+    depth=0
+    while depth<7:
+        new=q.get()
+        if new==None:
+            depth+=1
+            q.put(None)
+            continue
+        for neighbor in neighbors(grid, grid[new.y][new.x]):
+            if neighbor.terrain == Terrain.LAKE:
+                neighbor.terrain=Terrain.ICE
+                pix[neighbor.x,neighbor.y]=(123,255,255,255)
+                q.put(neighbor)
+def Mudbfs(pix,grid,frontier):
+    q = queue.Queue()
+    index=0
+    visited=[]
+    for curr in frontier:
+        q.put((curr[0],curr[1],index))
+        index+=1
+        visited.append([])
+        #pix[curr[0].x,curr[0].y]=(123,255,255,255)
+        #print(curr[0],curr[1])
+
+    q.put(None)
+    depth=0
+    while depth<14:
+        temp=q.get()
+        if temp==None:
+            depth+=1
+            q.put(None)
+            continue
+        new, start ,index= temp[0], temp[1],temp[2]
+        for neighbor in neighbors(grid, grid[new.y][new.x]):
+
+            if neighbor.terrain != Terrain.LAKE and neighbor.terrain!=Terrain.OUTOFBOUNDS and abs(neighbor.z-start)<=1 and neighbor not in visited[index]:
+                neighbor.terrain=Terrain.MUD
+                visited[index].append(neighbor)
+
+                pix[neighbor.x,neighbor.y]=(141,76,0,255)
+                q.put((neighbor,start,index))
+
 
 def neighbors(map, current):
     x = current.x
@@ -206,4 +271,6 @@ if __name__ == '__main__':
     #main("testcases/distanceCalc/terrain.png", "testcases/distanceCalc/mpp.txt", "testcases/distanceCalc/100Xpath.txt", "winter","redWinter.png")
     #main("testcases/elevation/terrain.png", "testcases/elevation/mpp.txt", "testcases/elevation/elPath.txt", "winter","redWinter.png")
 
-    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/easy.txt","winter","redWinter.png")
+    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","spring","redWinter.png")
+    #main("testcases/winter/terrain.png", "testcases/winter/mpp.txt", "testcases/winter/wPath.txt","winter","redWinter.png")
+    #main("testcases/spring/terrain.png", "testcases/spring/mpp.txt", "testcases/spring/sPath.txt","spring","redWinter.png")

@@ -24,6 +24,7 @@ def drawElevationMap(map):
         for x in range(0, len(map[0])):
             z = int(map[y][x].z)
             z = (z - 187) * 4
+            #pix[x,y]=(0,z,0,255)
             if z < 50:
                 pix[x, y] = (0, 0, z, 255)
             elif z >= 50 and z < 100:
