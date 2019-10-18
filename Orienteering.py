@@ -10,16 +10,16 @@ from RenderMap import *
 
 
 class Terrain(Enum):
-    ROAD = .2
-    TRAIL = -.3
-    OPENLAND = .5
-    ROUGHMEADOW = .6
-    EASYFOREST = .7
-    SLOWRUNFOREST = 1
-    WALKFOREST = 1.1
-    LAKE = 3
-    ICE = 4
-    MUD = 1.5
+    ROAD = 1
+    TRAIL = .95
+    OPENLAND = 1.25
+    ROUGHMEADOW = 1.5
+    EASYFOREST = 2
+    SLOWRUNFOREST = 3
+    WALKFOREST = 4
+    LAKE = 7
+    ICE = 8
+    MUD = 5.5
     IMPASSABLEVEG = 100
     OUTOFBOUNDS = 200
 
@@ -34,9 +34,12 @@ class point:
     h: int
     prev: Any
     terrain: Terrain
+    visited:bool
+    inHeap:bool
 
     def __repr__(self):
-        return str(self.x)+","+str(self.y)+" f: "+str(round(self.f,1))+" = "+str(round(self.g,1))+" + "+str(round(self.h,1))
+        return str(self.x) + "," + str(self.y) + " f: " + str(round(self.f, 1))
+
     def __lt__(self, other):
         return self.f < other.f
 
@@ -53,28 +56,23 @@ def makeMap(terrain_image, elevation_file,season):
             z = elev[y][x]
             color = pix[x, y]
             hex = "#{:02x}{:02x}{:02x}".format(color[0], color[1], color[2])
-            grid[y][x] = point(x, y, float(z), 0, 0,0, None, getTerrain(hex))
-    if season=="winter":
+            grid[y][x] = point(x, y, float(z), 0, 0,0, None, getTerrain(hex),False,False)
+    if season=="winter" or season=="spring":
         frontier=[]
         for y in range(0, len(grid)):
             for x in range(0, len(grid[y])):
                 if grid[y][x].terrain == Terrain.LAKE:
                     for neighbor in neighbors(grid,grid[y][x]):
                         if neighbor.terrain!= Terrain.LAKE and neighbor.terrain != Terrain.OUTOFBOUNDS:
-                            frontier.append(neighbor)
+                            if season=="winter":
+                                frontier.append(neighbor)
+                            else:
+                                frontier.append((neighbor, grid[y][x].z))
+        if season == "winter":
+            Icebfs(pix, grid, frontier)
+        else:
+            Mudbfs(pix, grid, frontier)
 
-        Icebfs(pix,grid,frontier)
-    if season=="spring":
-        frontier=[]
-        for y in range(0, len(grid)):
-            for x in range(0, len(grid[y])):
-                if grid[y][x].terrain == Terrain.LAKE:
-                    for neighbor in neighbors(grid,grid[y][x]):
-                        if neighbor.terrain!= Terrain.LAKE and neighbor.terrain != Terrain.OUTOFBOUNDS:
-                            #frontier.append(neighbor)
-                            frontier.append((neighbor,grid[y][x].z))
-                            #pix[x,y]=(255,0,0,255)
-        Mudbfs(pix,grid,frontier)
     return terrain,grid
 
 def Icebfs(pix,grid,frontier):
@@ -130,7 +128,8 @@ def neighbors(map, current):
     y = current.y
     neighbors = [(-1, -1), (0, -1), (1, -1),
                  (-1, 0), (1, 0),
-                 (-1, 1), (0, 1), (1, 1) ]
+                 (-1, 1), (0, 1), (1, 1)]
+    #neighbors = [(0, -1),(-1, 0), (1, 0),(0, 1)]
     result = []
     for i, j in neighbors:
         if 0 < x + i < len(map[0]) and 0 < y + j < len(map):
@@ -159,28 +158,14 @@ def getTerrain(color):
     elif color == "#cd0065":
         return Terrain.OUTOFBOUNDS
 
-def printMap(map):
-    with open("map.txt", "w") as myfile:
-        for y in range(0, len(map)):
-            for x in range(0, len(map[0])):
-                myfile.write("[" + str(map[y][x].x) + "," + str(map[y][x].y) + "] ")
-                points = map[y][x]
-                print(points.terrain, end=' ')
-            myfile.write("\n")
-            print()
-    myfile.close()
-
 def heuristic(start, goal):
     (x, y, z) = start.x, start.y, start.z
     (gx, gy, gz) = goal.x, goal.y, goal.z
     dx = abs(x - gx)*10.29
     dy = abs(y - gy)*7.55
     dz = abs(z - gz)
-    #score = 1 *(dx + dy) + (1 - 2 * 1) * min(dx, dy)
     score=math.sqrt(dx*dx+dy*dy)
-    #return score
     return math.sqrt(score*score+dz*dz)
-    #return dx+dy+dz
 
 def terrainHeuristic(start,goal):
     distance=heuristic(start,goal)
@@ -195,39 +180,44 @@ def astar(map, start, goal):
     goal = map[goal[1]][goal[0]]
     start.f=start.h = heuristic(start, goal)
 
-    print("Predicted distance: ", start.h)
-    closed = []
+    #print("Predicted distance: ", start.h)
     visited = []
     heap = []
     heappush(heap, start)
-
+    start.inHeap=True
+    start.visited=True
 
     while heap:
+        #print(heap)
         current = heappop(heap)
-        #print(current)
+        current.inHeap=False
+        current.visited=True
         visited.append(current)
-
-        #print("Estimated distance from: ", heuristic(current, goal), "/", start.f)
         if current.x == goal.x and current.y == goal.y:
-            print("Found point: ",current.x,",",current.y," Distance: ",current.g)
+            distance = 0
             path = []
             while current:
+                if current.prev is not None:
+                    distance+=heuristic(current,current.prev)
                 path.append((current.x, current.y))
                 current = current.prev
-            return path[::-1], visited
+            #print("Found point: ", goal.x, ",", goal.y, " Distance: ", round(distance))
+            return path[::-1], visited,round(distance)
+
         for neighbor in neighbors(map, current):
-            if neighbor in closed:
+            if neighbor.visited:
                 continue
             neighborG = current.g + terrainHeuristic(current, neighbor)
-            if neighbor in heap  and neighborG >= neighbor.g:
+            if neighbor.inHeap and neighborG >= neighbor.g:
                 continue
             else:
                 neighbor.prev = current
                 neighbor.g = neighborG
                 neighbor.h= heuristic(neighbor, goal)
                 neighbor.f = neighborG+neighbor.h
+                neighbor.inHeap=True
                 heappush(heap, neighbor)
-            closed.append(current)
+
 
 def runCourse(map, path_file):
     with open(path_file) as textFile:
@@ -236,32 +226,39 @@ def runCourse(map, path_file):
     paths = []
     visited = []
     startT = time.time()
+    totalDistance=0
     for i in range(0, len(points) - 1):
         start = points[i]
         next = points[i + 1]
         stops.append(next)
-        print("Finding point: ",i+1,"/",len(points)-1,end=' ')
+        #print("Finding point: ",i+1,"/",len(points)-1,end=' ')
 
-        path, visits = astar(map, start, next)
+        path, visits, distance = astar(map, start, next)
+        totalDistance+=distance
+
+        for p in path:
+            if p not in paths:
+                paths.append(p)
+
+        for v in visits:
+            if v.visited:
+                visited.append(v)
         for y in range(0, len(map)):
             for x in range(0, len(map[y])):
                 map[y][x].f = 0
                 map[y][x].g = 0
                 map[y][x].prev = None
-        for p in path:
-            if p not in paths:
-                paths.append(p)
-        for v in visits:
-            if v not in visited:
-                visited.append(v)
+                map[y][x].visited=False
+                map[y][x].inHeap=False
+
     end = time.time()
     print(end - startT)
+    print("Total Distance: ",totalDistance)
     return paths, visited, stops
 
 def main(terrain_image, elevation_file, path_file, season, output):
     print("Loading Map")
     season_image,map = makeMap(terrain_image, elevation_file,season)
-    constructRender("output/pathMap2.png",terrain=season_image,outline=1)
 
     print("Map loaded, running A*")
     path, visited, stops = runCourse(map, path_file)
@@ -272,9 +269,9 @@ def main(terrain_image, elevation_file, path_file, season, output):
 
 
 if __name__ == '__main__':
-    #main("testcases/distanceCalc/terrain.png", "testcases/distanceCalc/mpp.txt", "testcases/distanceCalc/100Xpath.txt", "winter","redWinter.png")
-    #main("testcases/elevation/terrain.png", "testcases/elevation/mpp.txt", "testcases/elevation/elPath.txt", "winter","redWinter.png")
+    #main("testcases/distanceCalc/terrain.png", "testcases/distanceCalc/mpp.txt", "testcases/distanceCalc/100Xath.txt", "winter","redWinter.png")
+    main("testcases/elevation/terrain.png", "testcases/elevation/mpp.txt", "testcases/elevation/elPath.txt", "winter","redWinter.png")
 
-    main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","spring","redWinter.png")
+    #main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","summer","redWinter.png")
     #main("testcases/winter/terrain.png", "testcases/winter/mpp.txt", "testcases/winter/wPath.txt","winter","redWinter.png")
     #main("testcases/spring/terrain.png", "testcases/spring/mpp.txt", "testcases/spring/sPath.txt","spring","redWinter.png")
