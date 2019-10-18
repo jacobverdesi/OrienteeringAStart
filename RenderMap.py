@@ -40,10 +40,10 @@ def visitedMap(terrain_image,visited):
     pix = terrain_image.load()
     for index in range(0, len(visited)):
         visit = visited[index]
-        z = int(255 * index / len(visited))
+        z = int(190* index / len(visited))
         if index == 0 or index == len(visited):
             pix[visit.x, visit.y] = (255, 60, 255, 255)
-        pix[visit.x, visit.y] = (z, z, z, 255)
+        pix[visit.x, visit.y] = (60+z, 245, 60+(190-z), 255)
 
     return terrain_image
 

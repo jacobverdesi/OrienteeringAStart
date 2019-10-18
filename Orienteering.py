@@ -4,22 +4,22 @@ from PIL import Image
 import math
 from enum import Enum
 from dataclasses import dataclass
-from heapq import heappush, heappop, heapify
+from heapq import heappush, heappop
 import time
 from RenderMap import *
 
 
 class Terrain(Enum):
-    ROAD = .1
-    TRAIL = .1
+    ROAD = .2
+    TRAIL = -.3
     OPENLAND = .5
-    ROUGHMEADOW = .5
-    EASYFOREST = .5
-    SLOWRUNFOREST = .5
-    WALKFOREST = 1
-    LAKE = 2
-    ICE = 3
-    MUD = 4
+    ROUGHMEADOW = .6
+    EASYFOREST = .7
+    SLOWRUNFOREST = 1
+    WALKFOREST = 1.1
+    LAKE = 3
+    ICE = 4
+    MUD = 1.5
     IMPASSABLEVEG = 100
     OUTOFBOUNDS = 200
 
@@ -38,7 +38,7 @@ class point:
     def __repr__(self):
         return str(self.x)+","+str(self.y)+" f: "+str(round(self.f,1))+" = "+str(round(self.g,1))+" + "+str(round(self.h,1))
     def __lt__(self, other):
-        return self.h < other.h
+        return self.f < other.f
 
 def makeMap(terrain_image, elevation_file,season):
     terrain = Image.open(terrain_image)
@@ -49,7 +49,7 @@ def makeMap(terrain_image, elevation_file,season):
     for y in range(0, len(grid)):
         for x in range(0, len(grid[y])):
             whole = elev[y][x].split('e+')
-            elev[y][x] = round(float(whole[0]) * int(math.pow(10, int(whole[1]))), 6)
+            elev[y][x] = round(float(whole[0]) * int(math.pow(10, int(whole[1]))), 7)
             z = elev[y][x]
             color = pix[x, y]
             hex = "#{:02x}{:02x}{:02x}".format(color[0], color[1], color[2])
@@ -71,10 +71,9 @@ def makeMap(terrain_image, elevation_file,season):
                 if grid[y][x].terrain == Terrain.LAKE:
                     for neighbor in neighbors(grid,grid[y][x]):
                         if neighbor.terrain!= Terrain.LAKE and neighbor.terrain != Terrain.OUTOFBOUNDS:
-                            neighbor.terrain=Terrain.MUD
-                            pix[neighbor.x, neighbor.y] = (141, 76, 0, 255)
+                            #frontier.append(neighbor)
                             frontier.append((neighbor,grid[y][x].z))
-
+                            #pix[x,y]=(255,0,0,255)
         Mudbfs(pix,grid,frontier)
     return terrain,grid
 
@@ -91,20 +90,24 @@ def Icebfs(pix,grid,frontier):
             q.put(None)
             continue
         for neighbor in neighbors(grid, grid[new.y][new.x]):
-            if neighbor.terrain == Terrain.LAKE:
+            if neighbor.terrain == Terrain.LAKE :
                 neighbor.terrain=Terrain.ICE
                 pix[neighbor.x,neighbor.y]=(123,255,255,255)
                 q.put(neighbor)
+
 def Mudbfs(pix,grid,frontier):
     q = queue.Queue()
     index=0
     visited=[]
     for curr in frontier:
-        q.put((curr[0],curr[1],index))
-        index+=1
-        visited.append([])
-        #pix[curr[0].x,curr[0].y]=(123,255,255,255)
         #print(curr[0],curr[1])
+        if(curr[0].z-curr[1]<=1):
+            q.put((curr[0],curr[1],index))
+            curr[0].terrain = Terrain.MUD
+            pix[curr[0].x, curr[0].y] = (141, 76, 0, 255)
+            visited.append([])
+            visited[index].append(curr[0])
+            index+=1
 
     q.put(None)
     depth=0
@@ -116,14 +119,11 @@ def Mudbfs(pix,grid,frontier):
             continue
         new, start ,index= temp[0], temp[1],temp[2]
         for neighbor in neighbors(grid, grid[new.y][new.x]):
-
-            if neighbor.terrain != Terrain.LAKE and neighbor.terrain!=Terrain.OUTOFBOUNDS and abs(neighbor.z-start)<=1 and neighbor not in visited[index]:
+            #print(neighbor.x,neighbor.y,neighbor.z-start)
+            if (neighbor.terrain!=Terrain.MUD and neighbor.terrain!=Terrain.LAKE and neighbor.terrain!=Terrain.OUTOFBOUNDS) and neighbor.z-start<=6:
                 neighbor.terrain=Terrain.MUD
-                visited[index].append(neighbor)
-
                 pix[neighbor.x,neighbor.y]=(141,76,0,255)
                 q.put((neighbor,start,index))
-
 
 def neighbors(map, current):
     x = current.x
@@ -176,16 +176,18 @@ def heuristic(start, goal):
     dx = abs(x - gx)*10.29
     dy = abs(y - gy)*7.55
     dz = abs(z - gz)
-    #score = D * (dx + dy) + (D2 - 2 * D) * min(dx, dy)
+    #score = 1 *(dx + dy) + (1 - 2 * 1) * min(dx, dy)
     score=math.sqrt(dx*dx+dy*dy)
+    #return score
     return math.sqrt(score*score+dz*dz)
     #return dx+dy+dz
 
 def terrainHeuristic(start,goal):
     distance=heuristic(start,goal)
     #print(start.terrain)
+    #print(distance)
     terrainMulti=goal.terrain.value
-    return distance*terrainMulti
+    return terrainMulti*distance
 
 def astar(map, start, goal):
 
@@ -259,6 +261,8 @@ def runCourse(map, path_file):
 def main(terrain_image, elevation_file, path_file, season, output):
     print("Loading Map")
     season_image,map = makeMap(terrain_image, elevation_file,season)
+    constructRender("output/pathMap2.png",terrain=season_image,outline=1)
+
     print("Map loaded, running A*")
     path, visited, stops = runCourse(map, path_file)
     constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops )
