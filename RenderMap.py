@@ -1,6 +1,41 @@
 from PIL import Image
 from cv2 import VideoWriter, VideoWriter_fourcc, imread, resize
+import numpy as np
+import plotly.offline as go_offline
+import plotly.graph_objects as go
+def Render3d(map,terrain_image):
+    dataX=[]
+    dataY=[]
+    dataZ=[]
+    dataColor=[]
+    terrain = Image.open(terrain_image)
+    pix = terrain.load()
+    for y in range(0, len(map)):
+        lineX=[]
+        lineY=[]
+        lineZ=[]
+        lineColor=[]
+        for x in range(0, len(map[y])):
 
+            z=map[y][x].z
+            lineColor.append(pix[x,y])
+            lineX.append(x)
+            lineY.append(y)
+            lineZ.append(z)
+        dataX.append(lineX)
+        dataY.append(lineY)
+        dataZ.append(lineZ)
+        dataColor.append([lineColor,])
+    dataY.reverse()
+    fig = go.Figure(data=[go.Surface(z=dataZ,x=dataX,y=dataY,colorscale= dataColor)])
+    fig.update_layout(title='Orienteering', autosize=True, scene=dict(aspectratio=dict(y=10.29,x=7.55,z=1)),
+                      margin=dict(l=65, r=50, b=65, t=90))
+
+    #fig.add_trace(go.Surface(z=z_head, x=x_idw_list, y=y_idw_list))
+    #fig.update_layout(scene=dict(aspectratio=dict(x=2, y=2, z=0.5), xaxis=dict(range=[x_min, x_max], ),
+                                 #yaxis=dict(range=[y_min, y_max])))
+    #go_offline.plot(fig, filename='F:/3D_Terrain/3d_terrain.html', validate=True, auto_open=False)
+    fig.show()
 def make_video(index, outimg=None, fps=15, size=None,is_color=True, format="XVID"):
 
     fourcc = VideoWriter_fourcc(*format)
@@ -56,7 +91,7 @@ def drawPath(terrain_image, path,outline):
                 for j in range(-1,2):
                     if pix[x+i,y+j]!=(150, 50, 150, 255):
                         if x!=0 or y!=0 :
-                            pix[x+i, y+j] = (255, 60, 255, 255)
+                            pix[x+i, y+j] = (200, 100, 235, 255)
         pix[x, y] = (150, 50, 150, 255)
     return terrain_image
 

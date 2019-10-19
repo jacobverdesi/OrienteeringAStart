@@ -19,7 +19,8 @@ class Terrain(Enum):
     WALKFOREST = 4
     LAKE = 7
     ICE = 8
-    MUD = 5.5
+    MUD = 7.5
+    LEAVES=6
     IMPASSABLEVEG = 100
     OUTOFBOUNDS = 200
 
@@ -72,7 +73,14 @@ def makeMap(terrain_image, elevation_file,season):
             Icebfs(pix, grid, frontier)
         else:
             Mudbfs(pix, grid, frontier)
-
+    if season=="fall":
+        for y in range(0, len(grid)):
+            for x in range(0, len(grid[y])):
+                if grid[y][x].terrain == Terrain.TRAIL:
+                    for neighbor in neighbors(grid, grid[y][x]):
+                        if neighbor.terrain == Terrain.EASYFOREST:
+                            grid[y][x].terrain = Terrain.LEAVES
+                            pix[x, y] = (120,120,140, 255)
     return terrain,grid
 
 def Icebfs(pix,grid,frontier):
@@ -88,7 +96,7 @@ def Icebfs(pix,grid,frontier):
             q.put(None)
             continue
         for neighbor in neighbors(grid, grid[new.y][new.x]):
-            if neighbor.terrain == Terrain.LAKE :
+            if neighbor.terrain == Terrain.LAKE:
                 neighbor.terrain=Terrain.ICE
                 pix[neighbor.x,neighbor.y]=(123,255,255,255)
                 q.put(neighbor)
@@ -126,9 +134,7 @@ def Mudbfs(pix,grid,frontier):
 def neighbors(map, current):
     x = current.x
     y = current.y
-    neighbors = [(-1, -1), (0, -1), (1, -1),
-                 (-1, 0), (1, 0),
-                 (-1, 1), (0, 1), (1, 1)]
+    neighbors = [(-1, -1), (0, -1), (1, -1),(-1, 0), (1, 0),(-1, 1), (0, 1), (1, 1)]
     #neighbors = [(0, -1),(-1, 0), (1, 0),(0, 1)]
     result = []
     for i, j in neighbors:
@@ -169,8 +175,6 @@ def heuristic(start, goal):
 
 def terrainHeuristic(start,goal):
     distance=heuristic(start,goal)
-    #print(start.terrain)
-    #print(distance)
     terrainMulti=goal.terrain.value
     return terrainMulti*distance
 
@@ -180,7 +184,6 @@ def astar(map, start, goal):
     goal = map[goal[1]][goal[0]]
     start.f=start.h = heuristic(start, goal)
 
-    #print("Predicted distance: ", start.h)
     visited = []
     heap = []
     heappush(heap, start)
@@ -188,7 +191,6 @@ def astar(map, start, goal):
     start.visited=True
 
     while heap:
-        #print(heap)
         current = heappop(heap)
         current.inHeap=False
         current.visited=True
@@ -201,7 +203,6 @@ def astar(map, start, goal):
                     distance+=heuristic(current,current.prev)
                 path.append((current.x, current.y))
                 current = current.prev
-            #print("Found point: ", goal.x, ",", goal.y, " Distance: ", round(distance))
             return path[::-1], visited,round(distance)
 
         for neighbor in neighbors(map, current):
@@ -231,7 +232,6 @@ def runCourse(map, path_file):
         start = points[i]
         next = points[i + 1]
         stops.append(next)
-        #print("Finding point: ",i+1,"/",len(points)-1,end=' ')
 
         path, visits, distance = astar(map, start, next)
         totalDistance+=distance
@@ -257,21 +257,30 @@ def runCourse(map, path_file):
     return paths, visited, stops
 
 def main(terrain_image, elevation_file, path_file, season, output):
-    print("Loading Map")
     season_image,map = makeMap(terrain_image, elevation_file,season)
-
-    print("Map loaded, running A*")
     path, visited, stops = runCourse(map, path_file)
-    constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops )
-    constructRender("output/visitedMap.png",map=map,visited=visited,path=path,stops=stops ,outline=0)
-    constructRender("output/pathMap.png",terrain=season_image, path=path, stops=stops ,outline=1)
-
+    #constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops )
+    #constructRender("output/visitedMap.png",map=map,visited=visited,path=path,stops=stops ,outline=0)
+    constructRender("output/"+output,terrain=season_image, path=path, stops=stops ,outline=1)
+    Render3d(map,terrain_image)
 
 
 if __name__ == '__main__':
+    # main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","summer","redWinter.png")
     #main("testcases/distanceCalc/terrain.png", "testcases/distanceCalc/mpp.txt", "testcases/distanceCalc/100Xath.txt", "winter","redWinter.png")
-    main("testcases/elevation/terrain.png", "testcases/elevation/mpp.txt", "testcases/elevation/elPath.txt", "winter","redWinter.png")
+    #main("testcases/elevation/terrain.png", "testcases/elevation/mpp.txt", "testcases/elevation/elPath.txt", "winter","redWinter.png")
+    main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt","winter","brown/brownWinter.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/red.txt","winter","red/redWinter.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/white.txt","winter","white/whiteWinter.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt", "summer","brown/brownSummer.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/red.txt", "summer","red/redSummer.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/white.txt", "summer","white/whiteSummer.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt", "fall","brown/brownFall.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/red.txt", "fall","red/redFall.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/white.txt", "fall","white/whiteFall.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt", "spring","brown/brownSpring.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/red.txt", "spring","red/redSpring.png")
+    # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/white.txt", "spring","white/whiteSpring.png")
 
-    #main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","summer","redWinter.png")
     #main("testcases/winter/terrain.png", "testcases/winter/mpp.txt", "testcases/winter/wPath.txt","winter","redWinter.png")
     #main("testcases/spring/terrain.png", "testcases/spring/mpp.txt", "testcases/spring/sPath.txt","spring","redWinter.png")
