@@ -1,4 +1,5 @@
 import queue
+import sys
 from typing import Any
 from PIL import Image
 import math
@@ -221,6 +222,7 @@ def astar(map, start, goal):
 
 
 def runCourse(map, path_file):
+    print("Running",path_file)
     with open(path_file) as textFile:
         points = [[int(x) for x in line.split()] for line in textFile]
     stops = [points[0]]
@@ -228,13 +230,14 @@ def runCourse(map, path_file):
     visited = []
     startT = time.time()
     totalDistance=0
+    print("Found point: ",end=" ")
     for i in range(0, len(points) - 1):
         start = points[i]
         next = points[i + 1]
         stops.append(next)
-
         path, visits, distance = astar(map, start, next)
         totalDistance+=distance
+        print(points[0],",",points[1],end=" ")
 
         for p in path:
             if p not in paths:
@@ -252,24 +255,30 @@ def runCourse(map, path_file):
                 map[y][x].inHeap=False
 
     end = time.time()
-    print(end - startT)
+    print()
+    print("Time took:",end - startT)
     print("Total Distance: ",totalDistance)
     return paths, visited, stops
 
 def main(terrain_image, elevation_file, path_file, season, output):
     season_image,map = makeMap(terrain_image, elevation_file,season)
     path, visited, stops = runCourse(map, path_file)
-    #constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops )
-    #constructRender("output/visitedMap.png",map=map,visited=visited,path=path,stops=stops ,outline=0)
+    #constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops ) #Draw an elevation Map
+    #constructRender("output/visitedMap.png",map=map,visited=visited,path=path,stops=stops ,outline=0) # Draw a visited map
     constructRender("output/"+output,terrain=season_image, path=path, stops=stops ,outline=1)
-    Render3d(map,terrain_image)
+
+    #Render3d(map,terrain_image) # Make a 3D render!
 
 
 if __name__ == '__main__':
-    # main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","summer","redWinter.png")
+    if(len(sys.argv)==6):
+        main(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])
+    else:
+        print("Arguments terrain.png mpp.txt red.txt winter redWinter.png")
+    #main("testcases/default/terrain.png", "testcases/default/mpp.txt", "testcases/default/red.txt","summer","redWinter.png")
     #main("testcases/distanceCalc/terrain.png", "testcases/distanceCalc/mpp.txt", "testcases/distanceCalc/100Xath.txt", "winter","redWinter.png")
     #main("testcases/elevation/terrain.png", "testcases/elevation/mpp.txt", "testcases/elevation/elPath.txt", "winter","redWinter.png")
-    main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt","winter","brown/brownWinter.png")
+    #main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt","winter","brown/brownWinter.png")
     # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/red.txt","winter","red/redWinter.png")
     # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/white.txt","winter","white/whiteWinter.png")
     # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt", "summer","brown/brownSummer.png")
@@ -281,6 +290,3 @@ if __name__ == '__main__':
     # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/brown.txt", "spring","brown/brownSpring.png")
     # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/red.txt", "spring","red/redSpring.png")
     # main("testcases/normal/terrain.png", "testcases/normal/mpp.txt", "testcases/normal/white.txt", "spring","white/whiteSpring.png")
-
-    #main("testcases/winter/terrain.png", "testcases/winter/mpp.txt", "testcases/winter/wPath.txt","winter","redWinter.png")
-    #main("testcases/spring/terrain.png", "testcases/spring/mpp.txt", "testcases/spring/sPath.txt","spring","redWinter.png")
