@@ -1,7 +1,6 @@
 import queue
 import sys
 from typing import Any
-from PIL import Image
 import math
 from enum import Enum
 from dataclasses import dataclass
@@ -46,6 +45,7 @@ class point:
         return self.f < other.f
 
 def makeMap(terrain_image, elevation_file,season):
+    print("Generating Map")
     terrain = Image.open(terrain_image)
     pix = terrain.load()
     with open(elevation_file) as textFile:
@@ -265,8 +265,8 @@ def main(terrain_image, elevation_file, path_file, season, output):
     path, visited, stops = runCourse(map, path_file)
     #constructRender("output/elevationPathMap.png",map=map, path=path, stops=stops ) #Draw an elevation Map
     #constructRender("output/visitedMap.png",map=map,visited=visited,path=path,stops=stops ,outline=0) # Draw a visited map
-    constructRender("output/"+output,terrain=season_image, path=path, stops=stops ,outline=1)
-
+    constructRender(output,terrain=season_image, path=path, stops=stops ,outline=1)
+    print("Output file to:",output)
     #Render3d(map,terrain_image) # Make a 3D render!
 
 

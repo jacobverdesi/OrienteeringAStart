@@ -1,0 +1,70 @@
+===Orienteering Using A*===
+Contributor: jacob verdesi jxv3386@rit.edu
+Requirements: Python 3.7
+              Pillow 6  (Used for image processing)
+              plotly 4.2 ( Used for 3D render)
+python3 lab1.py terrain.png mpp.txt red.txt winter redWinter.png
+===Description===
+
+This is a program that uses the A* algorithm to find the shortest path through a map
+
+This map is given from a png file and colors correspond to the terrain type
+Another file is given which is a txt file that stores the z values in an x and y format
+Also a path file is given of points the A* algorithm traverses too this has an x and y value for each line
+Next the season is given (spring,summer,fall, or winter) lowercase
+The last program argument is a output image as a png file
+
+Each pixel represents 7.55m in the y direction and 10.29m and 1m for z
+There are 13 kinds of land that coorespond to colors:
+Terrain type	        Color on map            Terrain Multiplyer
+Open land	            #F89412 (248,148,18)    1.25
+Rough meadow	        #FFC000 (255,192,0)     1.5
+Easy movement forest	#FFFFFF (255,255,255)   2
+Slow run forest	        #02D03C (2,208,60)      3
+Walk forest	            #028828 (2,136,40)      4
+Impassible vegetation	#054918 (5,73,24)       100
+Lake/Swamp/Marsh	    #0000FF (0,0,255)       7
+Paved road	            #473303 (71,51,3)       1
+Footpath	            #000000 (0,0,0)         .95
+Out of bounds	        #CD0065 (205,0,101)     200
+MUD                                             7.5
+ICE                                             8
+LEAVES                                          6
+
+The last 3 types of land are created based on the season (MUD,ICE,LEAVES)
+Each Type of land has a different weight when traveling through it
+This is accounted for in the g score by multiplying the distance to move 1 pixel with the terrain multiplyer
+This score is added to the g score of the previous node to get this overall distance it took to get through here accounting terrain
+By doing this we are able to keep the g and h scores balanced
+To calculate h score we use Euclidean distance.
+dx=abs(x1-x2)
+dy=(y1-y2)
+dz=(z1-z2)
+return sqrt( sqrt(dx^2 + dy^2) + dz^2)
+** I was thinking about using the Tobler's hiking function and the angle of z change but decided this output looked better
+for calculating the f score we just add g+h
+
+This diffrent seasons are calculated before the A* algorithm runs
+First we read the terrain file , then the elevation file
+We create a new map of points containing all of the data
+After the map is created we search through the map for edges of water or trails,
+based on the season.
+For the winter and spring we use the edges to create a frontier for the BFS algorithm to travers
+In the winter it looks for new Lake nodes while the spring looks for not water or mud or dz > 1
+In the fall we just take these frontiers from the trails and look if the neigboring nodes have forests
+When these nodes are found the map is updated with the new terrain and the image is also updated
+Then it is sent to the a* algorithm
+
+This program has a number of outputs
+First it prints when its generating the map
+Then it prints when it is running the paths
+Onces it finds a point it prints the point until all the points are printed
+Then it prints the time it took to find the points in seconds
+Next it prints the Total disance the path is
+Finally it prints what the output file is
+
+**** I created additional renders in RenderMap that creates and elevation image, visitor map, and 3d render***
+*** go in main and use the ConstuctRender function ***
+The 3d render uses a downloaded package so if you dont want to use it , just delete the function
+*tried to put the image over the surface of the 3d render but the library didnt allow custom colors :C
+
