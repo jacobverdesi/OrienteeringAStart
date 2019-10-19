@@ -15,6 +15,7 @@ def Render3d(map,terrain_image):
         lineY=[]
         lineZ=[]
         lineColor=[]
+
         for x in range(0, len(map[y])):
 
             z=map[y][x].z
